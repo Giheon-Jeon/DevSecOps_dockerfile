@@ -1,0 +1,106 @@
+name: Deploy Dashboard to GitHub Pages
+
+on:
+  # security-scan 워크플로가 완료된 후 트리거
+  workflow_run:
+    workflows: ["Container Security Scan"]
+    types: [completed]
+    branches: [main]
+  # 대시보드 코드만 변경됐을 때도 수동/자동 배포
+  push:
+    branches: [main]
+    paths:
+      - "dashboard/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # gh-pages 브랜치 push 권한
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build & Deploy Dashboard
+    runs-on: ubuntu-latest
+    # security-scan이 실패해도 대시보드는 배포 (placeholder data로 fallback)
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── 스캔 결과 JSON 다운로드 (security-scan 완료 후 실행된 경우) ──
+      - name: Download Trivy vulnerable results
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-vulnerable-results
+          path: reports/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download Grype vulnerable results
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: grype-vulnerable-results
+          path: reports/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download Trivy hardened results
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-hardened-results
+          path: reports/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download Grype hardened results
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: grype-hardened-results
+          path: reports/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      # ── data.json 생성 (JSON이 없으면 placeholder 유지) ──
+      - name: Generate data.json from scan results
+        run: |
+          if ls reports/*.json 1> /dev/null 2>&1; then
+            python3 scripts/generate_data_json.py
+            echo "✅ data.json 생성 완료"
+          else
+            echo "⚠️  스캔 결과 없음 — placeholder data.json 유지"
+          fi
+
+      # ── Vite 빌드 ──
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: dashboard/package.json
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Build dashboard
+        working-directory: dashboard
+        run: npm run build
+
+      # ── gh-pages 브랜치에 배포 ──
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dashboard/dist
+          publish_branch: gh-pages
+          commit_message: "deploy: update dashboard (${{ github.sha }})"
