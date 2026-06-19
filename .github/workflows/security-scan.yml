@@ -222,22 +222,22 @@ jobs:
       - name: Load image
         run: docker load -i /tmp/hardened.tar
 
+      - name: Grype scan → SARIF
+        id: grype-hardened-sarif
+        uses: anchore/scan-action@v6
+        with:
+          image: lab-hardened:latest
+          output-format: sarif
+          output-file: reports/grype-hardened.sarif
+          severity-cutoff: critical
+          fail-build: false   # 파일 생성 보장 후 아래 스텝에서 실패 처리
+
       - name: Grype scan → JSON
         uses: anchore/scan-action@v6
         with:
           image: lab-hardened:latest
           output-format: json
           output-file: reports/grype-hardened.json
-          severity-cutoff: critical
-          fail-build: true    # CRITICAL 발견 시 CI 실패
-
-      - name: Grype scan → SARIF
-        if: always()
-        uses: anchore/scan-action@v6
-        with:
-          image: lab-hardened:latest
-          output-format: sarif
-          output-file: reports/grype-hardened.sarif
           severity-cutoff: critical
           fail-build: false
 
@@ -254,6 +254,23 @@ jobs:
         with:
           name: grype-hardened-results
           path: reports/grype-hardened.*
+
+      - name: Fail if CRITICAL found
+        run: |
+          CRITICAL=$(python3 -c "
+          import json, sys
+          with open('reports/grype-hardened.json') as f:
+              data = json.load(f)
+          count = sum(1 for m in data.get('matches', [])
+                      if m.get('vulnerability', {}).get('severity', '').upper() == 'CRITICAL')
+          print(count)
+          ")
+          echo "Grype CRITICAL count: $CRITICAL"
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "❌ CRITICAL 취약점 ${CRITICAL}개 발견 — CI 실패"
+            exit 1
+          fi
+          echo "✅ CRITICAL 취약점 없음"
 
   # ──────────────────────────────────────────────
   # 5) 두 스캐너 결과 비교 요약 (모든 스캔 완료 후)
