@@ -1,69 +1,104 @@
-.sectionTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 14px;
-}
-
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
 }
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
+  border-top: 3px solid var(--accent-color);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
-.danger { border-left: 4px solid var(--critical); }
-.safe   { border-left: 4px solid var(--low); }
+.card:hover {
+  box-shadow: 0 0 0 1px var(--accent-color), var(--shadow);
+}
 
-.cardHeader {
+.cardTop {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
+  gap: 8px;
 }
 
-.label { font-size: 16px; font-weight: 700; }
-.base  { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+.cardLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
 
-.totalRow {
+.cardIcon { font-size: 18px; }
+
+.baseImg {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.totalBlock {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
-.totalNum   { font-size: 40px; font-weight: 800; line-height: 1; }
-.totalLabel { font-size: 13px; color: var(--text-muted); }
+.totalNum   { font-size: 52px; font-weight: 800; line-height: 1; color: var(--accent-color); }
+.totalMeta  { display: flex; flex-direction: column; gap: 6px; }
+.totalLabel { font-size: 12px; color: var(--text-muted); }
 
-.pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
-}
+.tagGood { font-size: 11px; background: var(--low-bg); color: var(--low); padding: 3px 8px; border-radius: 20px; border: 1px solid var(--low); width: fit-content; }
+.tagBad  { font-size: 11px; background: var(--critical-bg); color: var(--critical); padding: 3px 8px; border-radius: 20px; border: 1px solid var(--critical); width: fit-content; }
+
+/* Vulnerable card pills */
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .pill {
   font-size: 12px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 20px;
   background: var(--surface2);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  color: var(--c);
 }
 
-.pill[data-sev="critical"] { color: var(--critical); border-color: var(--critical); }
-.pill[data-sev="high"]     { color: var(--high);     border-color: var(--high); }
-.pill[data-sev="medium"]   { color: var(--medium);   border-color: var(--medium); }
-.pill[data-sev="low"]      { color: var(--low);      border-color: var(--low); }
+/* Hardened card bars */
+.bars { display: flex; flex-direction: column; gap: 10px; }
 
-.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.statBar {}
 
-.tagBad  { font-size: 12px; background: #450a0a; color: var(--critical); padding: 3px 8px; border-radius: 4px; }
-.tagGood { font-size: 12px; background: #052e16; color: var(--low);      padding: 3px 8px; border-radius: 4px; }
+.statLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statNums { display: flex; align-items: center; gap: 3px; font-size: 12px; }
+.statSlash { color: var(--text-dim); }
+.statVuln  { color: var(--text-dim); text-decoration: line-through; }
+
+.barTrack {
+  height: 5px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s cubic-bezier(0.4,0,0.2,1);
+}

@@ -1,55 +1,89 @@
+import { useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer, Cell,
 } from "recharts";
 import styles from "./SeverityBarChart.module.css";
 
 const SEVS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE"];
-const SEV_COLORS = {
-  CRITICAL: "#f87171",
-  HIGH:     "#fb923c",
-  MEDIUM:   "#facc15",
-  LOW:      "#4ade80",
-  NEGLIGIBLE: "#94a3b8",
+
+const SERIES = {
+  all: [
+    { key: "Trivy/Vuln",  color: "#ff4d6d" },
+    { key: "Grype/Vuln",  color: "#ff8c42" },
+    { key: "Trivy/Hard",  color: "#38bdf8" },
+    { key: "Grype/Hard",  color: "#c084fc" },
+  ],
+  trivy: [
+    { key: "Trivy/Vuln",  color: "#ff4d6d" },
+    { key: "Trivy/Hard",  color: "#38bdf8" },
+  ],
+  grype: [
+    { key: "Grype/Vuln",  color: "#ff8c42" },
+    { key: "Grype/Hard",  color: "#c084fc" },
+  ],
 };
 
 function buildData(images) {
   return SEVS.map((sev) => ({
     name: sev,
-    "Trivy / Vuln":  images.vulnerable.trivy[sev] ?? 0,
-    "Grype / Vuln":  images.vulnerable.grype[sev] ?? 0,
-    "Trivy / Hard":  images.hardened.trivy[sev]   ?? 0,
-    "Grype / Hard":  images.hardened.grype[sev]   ?? 0,
+    "Trivy/Vuln":  images.vulnerable.trivy[sev] ?? 0,
+    "Grype/Vuln":  images.vulnerable.grype[sev] ?? 0,
+    "Trivy/Hard":  images.hardened.trivy[sev]   ?? 0,
+    "Grype/Hard":  images.hardened.grype[sev]   ?? 0,
   }));
 }
 
-const BARS = [
-  { key: "Trivy / Vuln", color: "#f87171" },
-  { key: "Grype / Vuln", color: "#fb923c" },
-  { key: "Trivy / Hard", color: "#60a5fa" },
-  { key: "Grype / Hard", color: "#a78bfa" },
-];
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className={styles.tooltip}>
+      <p className={styles.tooltipLabel}>{label}</p>
+      {payload.map((p) => (
+        <div key={p.dataKey} className={styles.tooltipRow}>
+          <span className={styles.tooltipDot} style={{ background: p.fill }} />
+          <span>{p.dataKey}</span>
+          <b>{p.value}</b>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function SeverityBarChart({ images }) {
+  const [mode, setMode] = useState("all");
   const data = buildData(images);
+  const bars = SERIES[mode];
 
   return (
     <section>
-      <h2 className={styles.sectionTitle}>심각도별 CVE 수 비교</h2>
+      <div className={styles.titleRow}>
+        <p className="section-title" style={{ marginBottom: 0 }}>심각도별 CVE 수 비교</p>
+        <div className={styles.tabs}>
+          {["all", "trivy", "grype"].map((m) => (
+            <button
+              key={m}
+              className={`${styles.tab} ${mode === m ? styles.tabActive : ""}`}
+              onClick={() => setMode(m)}
+            >
+              {m === "all" ? "전체" : m === "trivy" ? "Trivy만" : "Grype만"}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className={styles.chartWrap}>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2e3347" />
-            <XAxis dataKey="name" tick={{ fill: "#8892a4", fontSize: 12 }} />
-            <YAxis tick={{ fill: "#8892a4", fontSize: 12 }} />
-            <Tooltip
-              contentStyle={{ background: "#1a1d27", border: "1px solid #2e3347", borderRadius: 8 }}
-              labelStyle={{ color: "#e2e8f0", fontWeight: 700 }}
-              itemStyle={{ color: "#e2e8f0" }}
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data} margin={{ top: 12, right: 20, left: -10, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e2338" vertical={false} />
+            <XAxis dataKey="name" tick={{ fill: "#7882a0", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: "#7882a0", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+            <Legend
+              wrapperStyle={{ fontSize: 12, color: "#7882a0", paddingTop: 12 }}
+              iconType="circle"
             />
-            <Legend wrapperStyle={{ fontSize: 12, color: "#8892a4" }} />
-            {BARS.map(({ key, color }) => (
-              <Bar key={key} dataKey={key} fill={color} radius={[3, 3, 0, 0]} />
+            {bars.map(({ key, color }) => (
+              <Bar key={key} dataKey={key} fill={color} radius={[4, 4, 0, 0]} maxBarSize={32} />
             ))}
           </BarChart>
         </ResponsiveContainer>

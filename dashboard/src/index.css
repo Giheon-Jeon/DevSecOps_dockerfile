@@ -1,20 +1,41 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface2: #22263a;
-  --border: #2e3347;
+  --bg: #0a0c14;
+  --surface: #12151f;
+  --surface2: #1a1e2e;
+  --surface3: #222740;
+  --border: #2a2f45;
+  --border-bright: #3d4460;
   --text: #e2e8f0;
-  --text-muted: #8892a4;
-  --critical: #f87171;
-  --high: #fb923c;
-  --medium: #facc15;
-  --low: #4ade80;
-  --negligible: #94a3b8;
-  --trivy: #1d8cf8;
-  --grype: #a78bfa;
+  --text-muted: #7882a0;
+  --text-dim: #4a5270;
+
+  --critical: #ff4d6d;
+  --critical-bg: #2d0a14;
+  --high: #ff8c42;
+  --high-bg: #2d1500;
+  --medium: #ffd166;
+  --medium-bg: #2d2200;
+  --low: #06d6a0;
+  --low-bg: #00291e;
+  --negligible: #8892b0;
+  --negligible-bg: #151a2e;
+
+  --trivy: #38bdf8;
+  --trivy-bg: #0a2233;
+  --grype: #c084fc;
+  --grype-bg: #1e0a33;
+
+  --accent: #6366f1;
+  --accent-glow: rgba(99,102,241,0.15);
+
+  --radius: 12px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
+
+html { scroll-behavior: smooth; }
 
 body {
   background: var(--bg);
@@ -24,5 +45,19 @@ body {
   line-height: 1.6;
 }
 
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
 a { color: var(--trivy); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* 공통 섹션 타이틀 */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 16px;
+}
