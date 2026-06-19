@@ -1,24 +1,24 @@
 {
-  "generatedAt": "2026-06-19T00:00:00Z",
-  "placeholder": true,
+  "generatedAt": "2026-06-19T08:07:41.729802+00:00",
+  "placeholder": false,
   "images": {
     "vulnerable": {
       "baseImage": "ubuntu:18.04",
       "runAsRoot": true,
       "trivy": {
-        "CRITICAL": 22,
-        "HIGH": 87,
-        "MEDIUM": 143,
-        "LOW": 201,
-        "NEGLIGIBLE": 12,
-        "UNKNOWN": 3
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "NEGLIGIBLE": 0,
+        "UNKNOWN": 0
       },
       "grype": {
-        "CRITICAL": 19,
-        "HIGH": 91,
-        "MEDIUM": 138,
-        "LOW": 195,
-        "NEGLIGIBLE": 8,
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "NEGLIGIBLE": 0,
         "UNKNOWN": 0
       }
     },
@@ -27,19 +27,19 @@
       "runAsRoot": false,
       "trivy": {
         "CRITICAL": 0,
-        "HIGH": 2,
-        "MEDIUM": 9,
-        "LOW": 14,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
         "NEGLIGIBLE": 0,
         "UNKNOWN": 0
       },
       "grype": {
-        "CRITICAL": 0,
-        "HIGH": 3,
-        "MEDIUM": 7,
-        "LOW": 11,
-        "NEGLIGIBLE": 0,
-        "UNKNOWN": 0
+        "CRITICAL": 6,
+        "HIGH": 21,
+        "MEDIUM": 52,
+        "LOW": 8,
+        "NEGLIGIBLE": 51,
+        "UNKNOWN": 36
       }
     }
   }
