@@ -6,6 +6,7 @@
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)
 ![Trivy](https://img.shields.io/badge/Trivy-1904DA?style=for-the-badge&logo=aquasecurity&logoColor=white)
+![Grype](https://img.shields.io/badge/Grype-6236FF?style=for-the-badge&logo=anchore&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 
 ---
@@ -72,9 +73,39 @@ trivy image --severity CRITICAL,HIGH --exit-code 1 lab-hardened:latest
 # SARIF 형식으로 저장
 trivy image --format sarif --output reports/trivy-vulnerable.sarif lab-vulnerable:latest
 trivy image --format sarif --output reports/trivy-hardened.sarif  lab-hardened:latest
+
+# JSON 형식으로 저장 (비교 스크립트 입력용)
+trivy image --format json --output reports/trivy-vulnerable.json lab-vulnerable:latest
+trivy image --format json --output reports/trivy-hardened.json   lab-hardened:latest
 ```
 
-### 4. 앱 실행 확인
+### 4. Grype 설치 및 스캔
+
+```bash
+# macOS / Linux 설치
+curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+# Windows (Scoop)
+scoop install grype
+
+# 취약 이미지 스캔
+grype lab-vulnerable:latest
+
+# 강화 이미지 스캔 (CRITICAL 발견 시 exit 1)
+grype lab-hardened:latest --fail-on critical
+
+# JSON 형식으로 저장 (비교 스크립트 입력용)
+grype lab-vulnerable:latest -o json > reports/grype-vulnerable.json
+grype lab-hardened:latest   -o json > reports/grype-hardened.json
+```
+
+### 5. 두 스캐너 결과 비교 (로컬)
+
+```bash
+python3 scripts/compare_results.py
+```
+
+### 6. 앱 실행 확인
 
 ```bash
 docker run -p 5000:5000 lab-hardened:latest
@@ -85,6 +116,8 @@ curl http://localhost:5000/health
 
 ## Before / After 비교
 
+### 이미지 특성
+
 | 항목 | Vulnerable | Hardened |
 |---|---|---|
 | 베이스 이미지 | ubuntu:18.04 (EOL) | python:3.12-slim |
@@ -93,9 +126,32 @@ curl http://localhost:5000/health
 | 파일 권한 | chmod 777 | 기본값 (644/755) |
 | 불필요한 패키지 | curl, wget, vim, telnet, gcc 등 | 없음 |
 | HEALTHCHECK | 없음 | 있음 |
-| CRITICAL CVE | ~45개 (placeholder) | 0개 (placeholder) |
-| HIGH CVE | ~120개 (placeholder) | ~3개 (placeholder) |
 | 이미지 크기 | ~450 MB (placeholder) | ~130 MB (placeholder) |
+
+### Trivy 스캔 결과
+
+| 심각도 | Vulnerable | Hardened |
+|---|---|---|
+| CRITICAL | ~45개 (placeholder) | 0개 (placeholder) |
+| HIGH | ~120개 (placeholder) | ~3개 (placeholder) |
+| MEDIUM | ~200개 (placeholder) | ~10개 (placeholder) |
+
+### Grype 스캔 결과
+
+| 심각도 | Vulnerable | Hardened |
+|---|---|---|
+| CRITICAL | ~개 (placeholder) | 0개 (placeholder) |
+| HIGH | ~개 (placeholder) | ~개 (placeholder) |
+| MEDIUM | ~개 (placeholder) | ~개 (placeholder) |
+
+### 스캐너 간 비교 포인트
+
+| 항목 | Trivy | Grype |
+|---|---|---|
+| DB 소스 | NVD, GitHub Advisory, OS vendor | NVD, GitHub Advisory, RHSA 등 |
+| 검출 방식 | 레이어별 패키지 분석 | SBOM 기반 매칭 |
+| SARIF 지원 | O | O |
+| 속도 | 빠름 | 보통 |
 
 > 실제 스캔 후 placeholder 값을 교체하세요.
 
@@ -121,7 +177,7 @@ curl http://localhost:5000/health
 |---|---|
 | 컨테이너 | Docker |
 | 앱 프레임워크 | Python / Flask |
-| 취약점 스캐너 | Trivy (Aqua Security) |
+| 취약점 스캐너 | Trivy (Aqua Security), Grype (Anchore) |
 | CI/CD | GitHub Actions |
 | 보안 기준 | CIS Docker Benchmark v1.6 |
 | 결과 포맷 | SARIF (GitHub Security tab 연동) |

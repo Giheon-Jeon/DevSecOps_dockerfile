@@ -11,48 +11,166 @@ permissions:
   security-events: write
 
 jobs:
-  scan-vulnerable:
-    name: Scan Vulnerable Image
+  # ──────────────────────────────────────────────
+  # 1) 취약 이미지 빌드 (이후 잡들이 공유)
+  # ──────────────────────────────────────────────
+  build-vulnerable:
+    name: Build Vulnerable Image
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Build vulnerable image
         run: docker build -f vulnerable/Dockerfile -t lab-vulnerable:latest .
 
-      - name: Run Trivy on vulnerable image (SARIF)
+      - name: Save image as tarball
+        run: docker save lab-vulnerable:latest -o /tmp/vulnerable.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerable-image
+          path: /tmp/vulnerable.tar
+
+  # ──────────────────────────────────────────────
+  # 2) 강화 이미지 빌드
+  # ──────────────────────────────────────────────
+  build-hardened:
+    name: Build Hardened Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build hardened image
+        run: docker build -f hardened/Dockerfile -t lab-hardened:latest .
+
+      - name: Save image as tarball
+        run: docker save lab-hardened:latest -o /tmp/hardened.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardened-image
+          path: /tmp/hardened.tar
+
+  # ──────────────────────────────────────────────
+  # 3a) Trivy — 취약 이미지 (병렬)
+  # ──────────────────────────────────────────────
+  trivy-vulnerable:
+    name: "Trivy / Vulnerable"
+    runs-on: ubuntu-latest
+    needs: build-vulnerable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: vulnerable-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/vulnerable.tar
+
+      - name: Trivy scan → SARIF
         uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: lab-vulnerable:latest
           format: sarif
           output: reports/trivy-vulnerable.sarif
           severity: CRITICAL,HIGH,MEDIUM
-          exit-code: "0"   # 취약 이미지는 CI를 실패시키지 않음 (결과 기록 목적)
+          exit-code: "0"
 
-      - name: Upload vulnerable scan results to GitHub Security
+      - name: Trivy scan → JSON (비교용)
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: lab-vulnerable:latest
+          format: json
+          output: reports/trivy-vulnerable.json
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0"
+
+      - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/trivy-vulnerable.sarif
           category: trivy-vulnerable
 
-      - name: Upload SARIF as artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-vulnerable-sarif
-          path: reports/trivy-vulnerable.sarif
+          name: trivy-vulnerable-results
+          path: reports/trivy-vulnerable.*
 
-  scan-hardened:
-    name: Scan Hardened Image
+  # ──────────────────────────────────────────────
+  # 3b) Grype — 취약 이미지 (병렬)
+  # ──────────────────────────────────────────────
+  grype-vulnerable:
+    name: "Grype / Vulnerable"
     runs-on: ubuntu-latest
+    needs: build-vulnerable
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build hardened image
-        run: docker build -f hardened/Dockerfile -t lab-hardened:latest .
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: vulnerable-image
+          path: /tmp
 
-      - name: Run Trivy on hardened image (SARIF)
+      - name: Load image
+        run: docker load -i /tmp/vulnerable.tar
+
+      - name: Grype scan → JSON
+        uses: anchore/scan-action@v6
+        with:
+          image: lab-vulnerable:latest
+          output-format: json
+          output-file: reports/grype-vulnerable.json
+          severity-cutoff: medium
+          fail-build: false
+
+      - name: Grype scan → SARIF
+        uses: anchore/scan-action@v6
+        with:
+          image: lab-vulnerable:latest
+          output-format: sarif
+          output-file: reports/grype-vulnerable.sarif
+          severity-cutoff: medium
+          fail-build: false
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/grype-vulnerable.sarif
+          category: grype-vulnerable
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: grype-vulnerable-results
+          path: reports/grype-vulnerable.*
+
+  # ──────────────────────────────────────────────
+  # 4a) Trivy — 강화 이미지 (병렬)
+  # ──────────────────────────────────────────────
+  trivy-hardened:
+    name: "Trivy / Hardened"
+    runs-on: ubuntu-latest
+    needs: build-hardened
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: hardened-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/hardened.tar
+
+      - name: Trivy scan → SARIF
         uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: lab-hardened:latest
@@ -61,16 +179,164 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"   # CRITICAL/HIGH 발견 시 CI 실패
 
-      - name: Upload hardened scan results to GitHub Security
+      - name: Trivy scan → JSON (비교용)
+        if: always()
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: lab-hardened:latest
+          format: json
+          output: reports/trivy-hardened.json
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0"
+
+      - name: Upload SARIF to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/trivy-hardened.sarif
           category: trivy-hardened
 
-      - name: Upload SARIF as artifact
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-hardened-sarif
-          path: reports/trivy-hardened.sarif
+          name: trivy-hardened-results
+          path: reports/trivy-hardened.*
+
+  # ──────────────────────────────────────────────
+  # 4b) Grype — 강화 이미지 (병렬)
+  # ──────────────────────────────────────────────
+  grype-hardened:
+    name: "Grype / Hardened"
+    runs-on: ubuntu-latest
+    needs: build-hardened
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: hardened-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/hardened.tar
+
+      - name: Grype scan → JSON
+        uses: anchore/scan-action@v6
+        with:
+          image: lab-hardened:latest
+          output-format: json
+          output-file: reports/grype-hardened.json
+          severity-cutoff: critical
+          fail-build: true    # CRITICAL 발견 시 CI 실패
+
+      - name: Grype scan → SARIF
+        if: always()
+        uses: anchore/scan-action@v6
+        with:
+          image: lab-hardened:latest
+          output-format: sarif
+          output-file: reports/grype-hardened.sarif
+          severity-cutoff: critical
+          fail-build: false
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/grype-hardened.sarif
+          category: grype-hardened
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grype-hardened-results
+          path: reports/grype-hardened.*
+
+  # ──────────────────────────────────────────────
+  # 5) 두 스캐너 결과 비교 요약 (모든 스캔 완료 후)
+  # ──────────────────────────────────────────────
+  compare-results:
+    name: Compare Scanner Results
+    runs-on: ubuntu-latest
+    needs:
+      - trivy-vulnerable
+      - grype-vulnerable
+      - trivy-hardened
+      - grype-hardened
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all scan results
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/
+
+      - name: Flatten artifact subdirectories
+        run: |
+          find reports/ -mindepth 2 -type f -name "*.json" -exec mv {} reports/ \;
+          find reports/ -mindepth 2 -type f -name "*.sarif" -exec mv {} reports/ \;
+
+      - name: Generate comparison summary
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys
+
+          def count_by_severity(path):
+              if not os.path.exists(path):
+                  return {}
+              with open(path) as f:
+                  data = json.load(f)
+
+              counts = {}
+
+              # Trivy JSON 형식
+              for result in data.get("Results", []):
+                  for vuln in result.get("Vulnerabilities", []) or []:
+                      sev = vuln.get("Severity", "UNKNOWN")
+                      counts[sev] = counts.get(sev, 0) + 1
+
+              # Grype JSON 형식
+              for match in data.get("matches", []):
+                  sev = match.get("vulnerability", {}).get("severity", "UNKNOWN").upper()
+                  counts[sev] = counts.get(sev, 0) + 1
+
+              return counts
+
+          files = {
+              "Trivy  / Vulnerable": "reports/trivy-vulnerable.json",
+              "Grype  / Vulnerable": "reports/grype-vulnerable.json",
+              "Trivy  / Hardened  ": "reports/trivy-hardened.json",
+              "Grype  / Hardened  ": "reports/grype-hardened.json",
+          }
+
+          severities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE", "UNKNOWN"]
+
+          header = f"{'Scanner / Image':<26} | " + " | ".join(f"{s:>10}" for s in severities)
+          sep    = "-" * len(header)
+
+          lines = [sep, header, sep]
+          for label, path in files.items():
+              counts = count_by_severity(path)
+              row = f"{label} | " + " | ".join(f"{counts.get(s, 0):>10}" for s in severities)
+              lines.append(row)
+          lines.append(sep)
+
+          summary = "\n".join(lines)
+          print(summary)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("## Scanner Comparison Summary\n\n")
+              f.write("```\n" + summary + "\n```\n")
+          PYEOF
+
+      - name: Upload all results as combined artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-scan-results
+          path: |
+            reports/*.json
+            reports/*.sarif
